@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Browse Properties – EstateMate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{background-color:#f9fafb;background-image:
+      radial-gradient(circle at 20% 20%, rgba(99,102,241,0.08) 0%, rgba(255,255,255,0) 70%),
+      radial-gradient(circle at 80% 30%, rgba(168,85,247,0.05) 0%, rgba(255,255,255,0) 70%);
+      background-repeat:no-repeat;}
+  </style>
+</head>
+<body class="min-h-screen text-gray-900 flex flex-col">
+  <header class="bg-white/95 backdrop-blur border-b border-gray-100 sticky top-0 z-40">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)] pointer-events-none"></div>
+    <div class="relative z-10 max-w-7xl mx-auto flex items-center justify-between px-4 py-3 sm:px-6">
+      <a href="index.html" class="flex items-center gap-2 text-xl font-semibold text-indigo-600">
+        <span>EstateMate</span>
+        <span class="text-[11px] font-medium text-indigo-600/80 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200/60">AI Preview</span>
+      </a>
+      <nav class="flex items-center gap-6 text-[15px] font-medium text-gray-700">
+        <a href="dashboard.html" class="hover:text-indigo-600 transition">Dashboard</a>
+        <a href="browse.html"   class="text-indigo-600 font-semibold">Browse</a>
+        <a href="map.html"      class="hover:text-indigo-600 transition">Map</a>
+        <a href="about.html"    class="hover:text-indigo-600 transition">About</a>
+        <a href="contact.html"  class="hover:text-indigo-600 transition">Contact</a>
+        <a id="signInBtn" href="auth.html"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign in</a>
+        <button id="signOutBtn" type="button"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign out</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-10">
+    <!-- Heading + sub -->
+    <section class="text-center max-w-3xl mx-auto">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
+        Browse Properties
+      </h1>
+      <p class="mt-3 text-gray-600 leading-relaxed">
+        Filter and explore all our available listings.
+      </p>
+    </section>
+
+    <!-- Filters -->
+    <section class="mt-8 flex flex-col items-center gap-4">
+      <div class="w-full flex flex-col lg:flex-row lg:items-center lg:justify-center gap-4">
+        <input
+          id="cityFilter"
+          class="w-full lg:w-auto flex-1 rounded-xl border border-gray-300 bg-white/80 px-4 py-3 shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] placeholder-gray-400"
+          placeholder="City / Area"/>
+
+        <input
+          id="minPriceFilter"
+          class="w-full lg:w-auto flex-1 rounded-xl border border-gray-300 bg-white/80 px-4 py-3 shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] placeholder-gray-400"
+          placeholder="Min price (AED)"/>
+
+        <input
+          id="maxPriceFilter"
+          class="w-full lg:w-auto flex-1 rounded-xl border border-gray-300 bg-white/80 px-4 py-3 shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] placeholder-gray-400"
+          placeholder="Max price (AED)"/>
+
+        <button
+          id="filterBtn"
+          class="w-full lg:w-auto flex-shrink-0 inline-flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 text-[15px] shadow-md active:scale-[0.98] transition">
+          Filter
+        </button>
+      </div>
+
+      <div id="countText" class="text-sm text-gray-500 font-medium"></div>
+    </section>
+
+    <!-- Results grid -->
+    <section class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3" id="resultsGrid">
+      <!-- Cards get injected here -->
+    </section>
+
+    <!-- Error / status -->
+    <p id="errorBox"
+       class="hidden mt-10 text-center text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3"></p>
+  </main>
+
+  <!-- Firebase auth logic + data fetch -->
+  <script type="module">
+    /*********************************
+     * Firebase init (same config we use everywhere)
+     *********************************/
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZpPsSgm9bnBeed7nRuHJOBc7MGhH0jpQ",
+      authDomain: "estatemate-d54e1.firebaseapp.com",
+      projectId: "estatemate-d54e1",
+      storageBucket: "estatemate-d54e1.firebasestorage.app",
+      messagingSenderId: "745236119215",
+      appId: "1:745236119215:web:7170303f7be0010ad79e5a",
+      measurementId: "G-RXWF5891QM"
+    };
+
+    const app  = window._emApp || initializeApp(firebaseConfig);
+    window._emApp = app;
+    const auth = getAuth(app);
+
+    // navbar refs
+    const signInBtn  = document.getElementById("signInBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+
+    function show(el){ el && el.classList.remove("hidden"); }
+    function hide(el){ el && el.classList.add("hidden"); }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        hide(signInBtn);
+        show(signOutBtn);
+      } else {
+        show(signInBtn);
+        hide(signOutBtn);
+      }
+    });
+
+    signOutBtn?.addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+      } catch(e){
+        console.error("Sign-out error:", e);
+      }
+      window.location.href = "auth.html";
+    });
+
+    /*********************************
+     * Listing fetching + rendering
+     *********************************/
+    const resultsGrid = document.getElementById("resultsGrid");
+    const errorBox    = document.getElementById("errorBox");
+    const countText   = document.getElementById("countText");
+
+    const cityFilter     = document.getElementById("cityFilter");
+    const minPriceFilter = document.getElementById("minPriceFilter");
+    const maxPriceFilter = document.getElementById("maxPriceFilter");
+    const filterBtn      = document.getElementById("filterBtn");
+
+    let allListings = [];
+
+    // helper: AED formatting
+    const fmtAED = (n) => {
+      if (n == null || isNaN(n)) return "Price on request";
+      return "AED " + Number(n).toLocaleString("en-AE");
+    };
+
+    // choose best hero photo for the card
+    function pickCardImage(row) {
+      // If backend gave us array of URLs in row.images:
+      if (Array.isArray(row.images) && row.images.length > 0 && row.images[0]) {
+        return row.images[0];
+      }
+      // fallback to your placeholders by property_type
+      const type = (row.property_type || "").toLowerCase();
+      if (type.includes("villa"))       return "img/villa.jpg";
+      if (type.includes("town"))       return "img/townhouse.jpg";
+      if (type.includes("office"))     return "img/office.jpg";
+      if (type.includes("apart"))      return "img/apartment.jpg";
+      // final fallback
+      return "img/apartment.jpg";
+    }
+
+    function whereLine(row){
+      const bits = [row.building, row.community, row.city].filter(Boolean);
+      return bits.join(", ");
+    }
+
+    function summaryLine(row){
+      const parts = [];
+      if (row.bedrooms)  parts.push(`${row.bedrooms} bd`);
+      if (row.bathrooms) parts.push(`${row.bathrooms} ba`);
+      if (row.size_sqft) parts.push(`${Number(row.size_sqft).toLocaleString()} sqft`);
+      return parts.join(" · ");
+    }
+
+    function makeCard(row){
+      const card    = document.createElement("article");
+      card.className =
+        "bg-white rounded-xl shadow-md overflow-hidden flex flex-col hover:shadow-lg transition cursor-pointer";
+      card.innerHTML = `
+        <div class="w-full h-64 bg-gray-100 overflow-hidden">
+          <img
+            class="w-full h-full object-cover"
+            src="${pickCardImage(row)}"
+            alt="Property"/>
+        </div>
+
+        <div class="p-6 text-[15px] leading-relaxed">
+          <div class="text-sm font-semibold text-gray-800">${row.property_type || "Property"}</div>
+          <div class="text-xl font-extrabold text-indigo-600 mt-1">${fmtAED(row.price)}</div>
+
+          <div class="text-gray-600 text-sm mt-3">${whereLine(row) || "Dubai"}</div>
+          <div class="text-gray-500 text-xs mt-2">${summaryLine(row)}</div>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        // store raw row for the listing page
+        sessionStorage.setItem("selectedListing", JSON.stringify(row));
+        window.location.href = "listing.html";
+      });
+
+      return card;
+    }
+
+    function render(list){
+      resultsGrid.innerHTML = "";
+      list.forEach(l => resultsGrid.appendChild(makeCard(l)));
+      countText.textContent = `${list.length} listing(s)`;
+    }
+
+    function applyFilters(){
+      const cityVal  = cityFilter.value.trim().toLowerCase();
+      const minVal   = parseFloat(minPriceFilter.value.replace(/,/g,""));
+      const maxVal   = parseFloat(maxPriceFilter.value.replace(/,/g,""));
+
+      const filtered = allListings.filter(l => {
+        // city/community match
+        if (cityVal){
+          const hay = [
+            l.city, l.community, l.building
+          ].filter(Boolean).join(" ").toLowerCase();
+          if (!hay.includes(cityVal)) return false;
+        }
+
+        // price range
+        if (!isNaN(minVal) && l.price < minVal) return false;
+        if (!isNaN(maxVal) && l.price > maxVal) return false;
+
+        return true;
+      });
+
+      render(filtered);
+    }
+
+    filterBtn.addEventListener("click", applyFilters);
+
+    // initial load
+    async function loadListings(){
+      try {
+        errorBox.classList.add("hidden");
+        const res = await fetch("/api/listings?limit=5000");
+        const data = await res.json();
+
+        if (!data.ok){
+          throw new Error(data.error || "API error");
+        }
+
+        allListings = data.listings || [];
+        render(allListings);
+      } catch(err){
+        console.error(err);
+        errorBox.textContent =
+          "Could not load listings. Check the API server and credentials.";
+        errorBox.classList.remove("hidden");
+      }
+    }
+
+    loadListings();
+  </script>
+</body>
+</html>

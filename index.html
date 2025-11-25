@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EstateMate AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .bg-blob{position:absolute;filter:blur(80px);opacity:.4;border-radius:9999px;animation:floaty 8s ease-in-out infinite}
+    .blob-1{background:radial-gradient(circle at 30% 30%, rgba(99,102,241,.5) 0%, rgba(255,255,255,0) 70%);width:320px;height:320px;top:5%;left:10%}
+    .blob-2{background:radial-gradient(circle at 70% 70%, rgba(168,85,247,.4) 0%, rgba(255,255,255,0) 70%);width:280px;height:280px;bottom:10%;right:15%;animation-delay:2s}
+    @keyframes floaty{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-16px) scale(1.05)}}
+    .typing-dot{width:6px;height:6px;background:#4f46e5;border-radius:9999px;animation:bounce 1.2s infinite}
+    .typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+    @keyframes bounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-4px);opacity:1}}
+    .chat-fade-in{animation:chatFadeIn .28s ease forwards}
+    @keyframes chatFadeIn{0%{opacity:0;transform:translateY(6px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
+    .overlay{opacity:0;pointer-events:none}
+    .overlay.open{opacity:1;pointer-events:auto;animation:fadeIn .18s ease forwards}
+    .modal{opacity:0;transform:translateY(14px) scale(.985)}
+    .overlay.open .modal{animation:liftIn .22s ease forwards}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes liftIn{to{opacity:1;transform:translateY(0) scale(1)}}
+    .scroll-smooth::-webkit-scrollbar{width:6px}
+    .scroll-smooth::-webkit-scrollbar-thumb{background:rgba(99,102,241,.35);border-radius:9999px}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border:1px solid #e5e7eb;border-radius:9999px;background:#fff}
+    .chip input{accent-color:#4f46e5}
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 relative text-gray-900 flex flex-col">
+  <div class="bg-blob blob-1 pointer-events-none"></div>
+  <div class="bg-blob blob-2 pointer-events-none"></div>
+
+  <!-- Top bar -->
+<header class="bg-white/95 backdrop-blur border-b border-gray-100 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-3 sm:px-6">
+      <a href="index.html" class="text-xl font-semibold text-indigo-600 flex items-center gap-2">
+        <span>EstateMate</span>
+        <span class="text-[11px] font-medium text-indigo-600/80 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200/60">AI Preview</span>
+      </a>
+      <nav class="flex items-center gap-6 text-[15px] font-medium text-gray-700">
+        <a href="dashboard.html" class="hover:text-indigo-600 transition">Dashboard</a>
+        <a href="browse.html" class="hover:text-indigo-600 transition">Browse</a>
+        <a href="map.html" class="hover:text-indigo-600 transition">Map</a>
+        <a href="about.html" class="hover:text-indigo-600 transition">About</a>
+        <a href="contact.html" class="hover:text-indigo-600 transition">Contact</a>
+        <a id="signInBtn" href="auth.html"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">
+           Sign in
+        </a>
+        <button id="signOutBtn" type="button"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">
+           Sign out
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 relative z-10 px-4 py-10">
+    <div class="max-w-4xl mx-auto flex flex-col gap-6">
+      <section class="text-center">
+        <h1 class="text-3xl sm:text-4xl font-extrabold">Your personal real estate co-pilot</h1>
+        <p class="mt-3 text-gray-600 max-w-2xl mx-auto">
+          Ask EstateMate anything. “Show me 3-bedroom villas under 4M AED in Dubai Marina,”
+          “What’s the ROI if I rent this place?”, or “Is this a good neighborhood for families?”
+        </p>
+      </section>
+
+      <!-- Chat window -->
+      <section class="relative bg-white/80 backdrop-blur border border-white/40 shadow-xl rounded-2xl overflow-hidden flex flex-col max-h:[70vh] min-h-[480px]">
+        <div id="chatBody" class="flex-1 overflow-y-auto scroll-smooth p-6 space-y-6 text-sm leading-relaxed">
+          <div class="flex items-start gap-3 max-w-[80%] chat-fade-in">
+            <!-- CHANGED: avatar div -> image -->
+            <img src="img/Robot_TransparentBG.png" alt="EstateMate bot" class="flex-shrink-0 w-8 h-8 rounded-full bg-white object-contain shadow">
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 text-gray-800">
+              <p class="font-semibold text-gray-900 mb-1">EstateMate AI</p>
+              <p class="text-gray-700">Hi! I’m here to help you find your next property — faster. Tell me your budget, location, bedrooms, vibe, anything.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 bg-white/70 backdrop-blur px-4 py-4">
+          <form id="chatForm" class="flex items-end gap-3 flex-wrap">
+            <div class="flex-1 relative min-w-[220px]">
+              <textarea id="chatInput" rows="1" class="w-full resize-none rounded-xl border border-gray-300 bg-white/80 backdrop-blur px-4 py-3 pr-12 shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] leading-relaxed placeholder-gray-400" placeholder="Ask anything"></textarea>
+              <div id="typingDots" class="hidden absolute right-3 bottom-3 flex items-center gap-1">
+                <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+              </div>
+            </div>
+            <button
+              id="startRecommendBtn"
+              type="button"
+              class="inline-flex items-center justify-center rounded-xl border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-semibold px-4 py-3 text-sm shadow-sm active:scale-[0.98] transition"
+            >
+              Find a property
+            </button>
+
+            <button id="openPredictBtn" type="button" class="inline-flex items-center justify-center rounded-xl border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-semibold px-4 py-3 text-sm shadow-sm active:scale-[0.98] transition">
+              Predict price
+            </button>
+            <button type="submit" class="flex-shrink-0 inline-flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 text-sm shadow-md active:scale-[0.98] transition">
+              Send
+            </button>
+          </form>
+          <p class="mt-3 text-[11px] text-gray-400 text-center">EstateMate AI is a preview. Responses are for guidance only and not financial or legal advice.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ========= Quick Preferences overlay (RESTORED) ========= -->
+  <div id="quizOverlay" class="overlay fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60" data-overlay-close></div>
+    <div class="modal relative mx-auto mt-[8vh] w-full max-w-3xl px-4">
+      <div class="bg-white rounded-2xl shadow-2xl border border-white/60 p-6 max-h-[80vh] overflow-y-auto">
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-xl font-bold text-gray-900">Tell us your preferences</h3>
+            <p class="text-sm text-gray-600 mt-1">We’ll use these to personalize recommendations (you can change them anytime).</p>
+          </div>
+          <button class="text-gray-500 hover:text-gray-700" id="quizCloseBtn" aria-label="Close">✕</button>
+        </div>
+
+        <form id="quizForm" class="mt-6 space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm font-semibold">Budget (AED)</label>
+              <div class="mt-1 grid grid-cols-2 gap-2">
+                <input id="qBudgetMin" type="number" min="0" class="w-full border rounded-lg px-3 py-2" placeholder="Min e.g. 800000">
+                <input id="qBudgetMax" type="number" min="0" class="w-full border rounded-lg px-3 py-2" placeholder="Max e.g. 2000000">
+              </div>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Preferred areas</label>
+              <input id="qAreas" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Comma-separated: Marina, JVC, Business Bay">
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Bedrooms</label>
+              <select id="qBedrooms" class="mt-1 w-full border rounded-lg px-3 py-2">
+                <option value="">Any</option>
+                <option>Studio</option>
+                <option>1</option><option>2</option><option>3</option>
+                <option>4</option><option>5+</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Property type</label>
+              <select id="qType" class="mt-1 w-full border rounded-lg px-3 py-2">
+                <option value="">Any</option>
+                <option>Apartment</option>
+                <option>Villa</option>
+                <option>Townhouse</option>
+                <option>Office</option>
+                <option>Land</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Lifestyle vibe (pick any)</label>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <label class="chip"><input type="checkbox" value="family_friendly"   class="qLife"> Family-friendly</label>
+              <label class="chip"><input type="checkbox" value="city_vibes"        class="qLife"> City vibes</label>
+              <label class="chip"><input type="checkbox" value="social_buzz"       class="qLife"> Social buzz</label>
+              <label class="chip"><input type="checkbox" value="quiet"             class="qLife"> Quiet</label>
+              <label class="chip"><input type="checkbox" value="waterfront"        class="qLife"> Waterfront</label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm font-semibold">Style</label>
+              <select id="qStyle" class="mt-1 w-full border rounded-lg px-3 py-2">
+                <option value="">Any</option>
+                <option value="modern">Modern</option>
+                <option value="cozy">Cozy</option>
+                <option value="luxury">Luxury</option>
+                <option value="minimal">Minimal</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-semibold">Commute preference</label>
+              <select id="qCommute" class="mt-1 w-full border rounded-lg px-3 py-2">
+                <option value="">No preference</option>
+                <option value="short_commute">Short commute</option>
+                <option value="metro_access">Near Metro</option>
+                <option value="parking_must">Parking must</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Must-haves</label>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <label class="chip"><input type="checkbox" value="parking"  class="qMust"> Parking</label>
+              <label class="chip"><input type="checkbox" value="balcony"  class="qMust"> Balcony</label>
+              <label class="chip"><input type="checkbox" value="new_build"class="qMust"> New build</label>
+              <label class="chip"><input type="checkbox" value="furnished"class="qMust"> Furnished</label>
+              <label class="chip"><input type="checkbox" value="pet_friendly"class="qMust"> Pet friendly</label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm font-semibold">Budget mindset</label>
+              <select id="qBudgetMindset" class="mt-1 w-full border rounded-lg px-3 py-2">
+                <option value="">Flexible</option>
+                <option value="value">Value-first</option>
+                <option value="premium">Premium</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-semibold">Notes</label>
+              <input id="qNotes" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="Anything else?">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button type="button" id="quizCancel" class="text-sm text-gray-600 hover:text-gray-800 px-3 py-2 rounded-md">Not now</button>
+            <button id="quizSaveBtn" type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-md shadow">Save my preferences</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= Predict overlay (unchanged) ========= -->
+  <div id="predictOverlay" class="overlay fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60" data-predict-close></div>
+    <div class="modal relative mx-auto mt-[6vh] w-full max-w-2xl px-4">
+      <div class="bg-white rounded-2xl shadow-2xl border border-white/60 p-6 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-xl font-bold text-gray-900">Price prediction</h3>
+            <p class="text-sm text-gray-600 mt-1">Fill the fields — we’ll send them to the model and reply in chat with the predicted price.</p>
+          </div>
+          <button id="predictCloseBtn" class="text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+
+        <form id="predictForm" class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Area dropdown with search -->
+          <div class="sm:col-span-2">
+            <label class="text-sm font-semibold">Area</label>
+            <div class="mt-1 relative">
+              <input id="areaSearch" class="w-full border rounded-lg px-3 py-2 pr-10" placeholder="Type to filter (e.g., Jumeirah, Marina)"/>
+              <select id="areaSelect" name="area_id" class="mt-2 w-full border rounded-lg px-3 py-2"></select>
+              <p class="text-[11px] text-gray-500 mt-1">This maps to the model’s <code>area_id</code>.</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Procedure area (sqm)</label>
+            <input name="procedure_area" type="number" step="0.1" required class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="e.g., 120.5">
+          </div>
+          <div>
+            <label class="text-sm font-semibold">Rooms count</label>
+            <input name="rooms_count" type="number" min="0" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="e.g., 3" value="3">
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Has parking</label>
+            <select name="has_parking" class="mt-1 w-full border rounded-lg px-3 py-2">
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="text-sm font-semibold">Property type</label>
+            <div class="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <label class="border rounded-lg px-3 py-2 flex items-center gap-2">
+                <input type="radio" name="ptype" value="Unit" checked><span>Unit</span>
+              </label>
+              <label class="border rounded-lg px-3 py-2 flex items-center gap-2">
+                <input type="radio" name="ptype" value="Villa"><span>Villa</span>
+              </label>
+              <label class="border rounded-lg px-3 py-2 flex items-center gap-2">
+                <input type="radio" name="ptype" value="Building"><span>Building</span>
+              </label>
+              <label class="border rounded-lg px-3 py-2 flex items-center gap-2">
+                <input type="radio" name="ptype" value="Land"><span>Land</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="text-sm font-semibold">Registration type</label>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <label class="border rounded-lg px-3 py-2 flex items-center gap-2">
+                <input type="radio" name="regtype" value="Existing Properties" checked><span>Existing</span>
+              </label>
+              <label class="border rounded-lg px-3 py-2 flex items-center gap-2">
+                <input type="radio" name="regtype" value="Off-Plan Properties"><span>Off-plan</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Mall nearby</label>
+            <select name="mall_nearby" class="mt-1 w-full border rounded-lg px-3 py-2">
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-semibold">Metro nearby</label>
+            <select name="metro_nearby" class="mt-1 w-full border rounded-lg px-3 py-2">
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-semibold">Near airport</label>
+            <select name="near_airport" class="mt-1 w-full border rounded-lg px-3 py-2">
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Month (1–12)</label>
+            <input name="month" type="number" min="1" max="12" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="e.g., 5" />
+            <p class="text-[11px] text-gray-500 mt-1">We’ll convert to dbmonth_sin/cos automatically. Leave empty to use current month.</p>
+          </div>
+
+          <div class="sm:col-span-2 flex items-center justify-end gap-3 pt-2">
+            <button type="button" id="predictCancelBtn" class="text-sm text-gray-600 hover:text-gray-800 px-3 py-2 rounded-md">Cancel</button>
+            <button id="predictSubmitBtn" type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-md shadow">Predict</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Firebase + Chat + Predict + Quiz Logic ===== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:"AIzaSyCZpPsSgm9bnBeed7nRuHJOBc7MGhH0jpQ",
+      authDomain:"estatemate-d54e1.firebaseapp.com",
+      projectId:"estatemate-d54e1",
+      storageBucket:"estatemate-d54e1.fir estorage.app".replace(' ',''), // keep exact string if you copy
+      messagingSenderId:"745236119215",
+      appId:"1:745236119215:web:7170303f7be0010ad79e5a",
+      measurementId:"G-RXWF5891QM"
+    };
+
+    const app  = window._emApp || initializeApp(firebaseConfig);
+    window._emApp = app;
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    const CHAT_API_BASE = location.origin;
+    const chatBody   = document.getElementById('chatBody');
+    const chatForm   = document.getElementById('chatForm');
+    const chatInput  = document.getElementById('chatInput');
+    const typingDots = document.getElementById('typingDots');
+
+    const autosize=()=>{ chatInput.style.height='auto'; chatInput.style.height = chatInput.scrollHeight+'px'; };
+    chatInput.addEventListener('input', autosize);
+
+    const addAI = (t)=>{
+      const el=document.createElement('div');
+      el.className="flex items-start gap-3 max-w-[80%] chat-fade-in";
+      /* CHANGED: avatar div -> image */
+      el.innerHTML=`
+        <img src="img/Robot_TransparentBG.png" alt="EstateMate bot" class="flex-shrink-0 w-8 h-8 rounded-full bg-white object-contain shadow">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 text-gray-800">
+          <p class="font-semibold text-gray-900 mb-1">EstateMate AI</p>
+          <p class="text-gray-700 whitespace-pre-line">${t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p>
+        </div>`;
+      chatBody.appendChild(el); chatBody.scrollTop=chatBody.scrollHeight;
+    };
+    const addUser = (t)=>{
+      const el=document.createElement('div');
+      el.className="flex justify-end chat-fade-in";
+      el.innerHTML=`<div class="max-w-[80%] bg-indigo-600 text-white rounded-2xl shadow-md px-4 py-3"><p class="whitespace-pre-line">${t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p></div>`;
+      chatBody.appendChild(el); chatBody.scrollTop=chatBody.scrollHeight;
+    };
+
+    const withTimeout = (p, ms=1200) =>
+      Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]);
+
+    const fetchWithTimeout = (url, opts={}, ms=6000) =>
+      Promise.race([fetch(url, opts), new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]);
+
+    const safeSetDoc = async (ref, data) => { try { await withTimeout(setDoc(ref, data, {merge:true}), 1500); } catch {} };
+
+    const userScopedKey = (base, uid) => uid ? `${base}__${uid}` : base;
+    const getPrefsKey = (uid) => userScopedKey("em_quiz_prefs", uid);
+    const getQuizKey  = (uid) => userScopedKey("em_quiz_v2", uid);
+    const getPrefs = (uid)=>{ try{return JSON.parse(localStorage.getItem(getPrefsKey(uid))||'{}');}catch{return{}} };
+    const setPrefs = (uid,p)=>localStorage.setItem(getPrefsKey(uid), JSON.stringify(p));
+    const markDoneLocal = (uid,p,skipped=false)=>{
+      localStorage.setItem(getQuizKey(uid), JSON.stringify({quizDone:true, prefs:p, skipped, updatedAt:new Date().toISOString()}));
+      setPrefs(uid,p);
+    };
+    const alreadyDoneLocal = (uid)=>{ try{return !!(JSON.parse(localStorage.getItem(getQuizKey(uid))||'{}')?.quizDone);}catch{return false;} };
+
+    /* ---------- AREA MAP (for prediction form) ---------- */
+    const AREA_MAP = {
+      "Al Thanyah Fifth":350,"Al Thanayah Fourth":352,"Al Hebiah Second":452,"Al Hebiah Fifth":451,"Al Hebiah Fourth":435,"Al Khawaneej First":396,"Al Ttay":438,"Al Merkadh":412,"Al Wasl":364,"Nad Al Shiba":285,"Jumeirah First":317,"Madinat Dubai Almelaheyah":333,"Al Jadaf":334,"Nad Al Shiba First":335,"Nad Al Shiba Third":337,"Al Warsan First":343,"Palm Jabal Ali":411,"Palm Deira":432,"Al Safouh First":307,"Marsa Dubai":330,"Al Kifaf":366,"Al Safouh Second":371,"Zaabeel Second":332,"Al Thanyah Third":351,"Jabal Ali Industrial First":395,"Jabal Ali Industrial Second":478,"Hadaeq Sheikh Mohammed Bin Rashid":482,"Saih Shuaib 1":480,"Al Kheeran":437,"Al Satwa":266,"World Islands":413,"Mirdif":232,"Muhaisanah First":312,"Jabal Ali First":445,"Jumeirah Second":375,"Um Hurair Second":326,"Island 2":527,"Al Warsan Second":344,"Al Barsha First":368,"Al Hebiah Sixth":531,"Al Khawaneej Second":397,"Trade Center First":341,"AL MIZHAR FOURTH":402,"Al Manara":315,"Al Warqa Fourth":299,"Bukadra":405,"Hor Al Anz":233,"Al Karama":271,"Al Ruwayyah":296,"Zaabeel First":331,"Ghadeer Al tair":340,"Al Warqa First":297,"Al Warqa Third":298,"Al Mararr":339,"Al Goze Fourth":348,"Al Warqa Second":354,"Nad Al Shiba Fourth":406,"Al Barshaa South First":415,"Al Hamriya":269,"Nad Shamma":327,"Al Barsha Third":369,"Mushrif":404,"Port Saeed":240,"Trade Center Second":329,"Al Mizhar Second":394,"Al Mamzer":231,"Eyal Nasser":235,"Um Suqaim Third":370,"Ras Al Khor Industrial First":376,"Al Murqabat":244,"Al Raffa":267,"Naif":362,"Al Barsha Second":393,"Al Aweer First":398,"Um Suqaim Second":304,"Al Jafliya":328,"Al Mizhar Third":403,"Nad Al Hamar":264,"Al Waheda":382,"Madinat Hind 3":504,"AL Athbah":473,"Al Lusaily":391,"Al Yufrah 2":449,"Um Ramool":248,"Um Al Sheif":374,"Al Khabeesi":247,"Al Rashidiya":300,"AL QUSAIS":305,"Abu Hail":230,"Al Saffa Second":314,"AL TWAR FIFTH":357,"Ras Al Khor":282,"Al Goze First":338,"Al Saffa First":313,"Al Nahda First":355,"Wadi Al Amardi":401,"Al Muteena":249,"Al Mizhar First":316,"Al Baraha":239,"Jumeirah Third":318,"Saih Shuaib 2":453,"Al Dhagaya":238,"Al Nahda Second":301,"Hor Al Anz East":234,"Al Bada":276,"Al Twar Third":359,"Al Eyas":400,"Muhaisanah Third":311,"Nad Al Shiba Second":336,"Al Suq Al Kabeer":367,"Al Twar Second":310,"Um Suqaim First":303,"Rega Al Buteen":255,"Mankhool":278,"Al Warsan Third":345,"Al Ras":242,"Al Garhoud":378,"Oud Metha":388,"Al Yufrah 3":528,"Al Twar First":358,"Al Aweer Second":399,"Dubai International Airport":430,"Al Qusais Industrial Fifth":323,"Al Hudaiba":365,"Al Goze Industrial Second":372,"Jabal Ali":284,"Dubai Investment Park Second":459,"Saih Shuaib 4":455,"Al Thanyah First":443,"Hessyan First":522,"Al Barshaa South Second":414,"Al Hebiah Third":523,"Muhaisanah Fourth":361,"Al Qusais Industrial Fourth":322,"Al Buteen":254,"Al Yelayiss 5":510,"Ras Al Khor Industrial Third":342,"Jabal Ali Industrial Third":479,"Al Rowaiyah First":492,"Muhaisanah Second":360,"Ras Al Khor Industrial Second":319,"Wadi Al Safa 6":434,"Wadi Al Safa 3":465,"Wadi Al Safa 7":463,"Warsan Fourth":483,"Al Goze Third":347,"Al Goze Industrial Third":309,"Wadi Al Safa 2":464,"Wadi Al Safa 5":467,"Wadi Al Safa 4":466,"Hessyan Second":481,"Me'Aisem First":485,"Saih Shuaib 3":454,"Al Goze Industrial Fourth":373,"Me'Aisem Second":486,"Al Khairan First":447,"Al Rega":356,"Al Qusais Industrial Third":321,"Um Hurair First":325,"Grayteesah":349,"Al Qusais Industrial First":363,"Al Goze Industrial First":308,"Festival City First":436,"Mena Jabal Ali":477,"Margham":295,"Umm Addamin":494,"Al Qusais Industrial Second":320,"Saih Aldahal":515,"Lehbab First":489,"Madinat Latifa":513,"Al Sabkha":237,"Madinat Hind 1":502,"Lehbab Second":497,"Al Barsha South Fifth":442,"Al Maha":499,"Al Barsha South Fourth":441,"Al Yelayiss 1":506,"Al Barshaa South Third":409,"Al Rowaiyah Third":471,"Al Yelayiss 3":508,"Al Yufrah 1":469,"Business Bay":526,"Palm Jumeirah":410,"Al Rowaiyah Second":493,"Lehbab":294,"Madinat Hind 4":505,"Al Marmoom":288,"Nadd Hessa":484,"Mugatrah":518,"Muragab":524,"Um Esalay":500,"Tawi Al Muraqqab":302,"Al Yelayiss 2":507,"Madinat Hind 2":503,"Al Hebiah First":444,"Le Hemaira":496,"Nazwah":392,"Al Yufrah 4":529,"Al Yelayiss 4":509,"Jabal Ali Third":476,"Yaraah":468,"Al Faga'A":470,"Al Layan1":519,"Hatta":525,"Madinat Al Mataar":462,"Dubai Investment Park First":458,"Al-Cornich":431,"Remah":501
+    };
+
+    /* Populate dropdown and enable search filter */
+    const areaSelect = document.getElementById('areaSelect');
+    const areaSearch = document.getElementById('areaSearch');
+
+    const AREA_ENTRIES = Object.entries(AREA_MAP).sort((a,b)=>a[0].localeCompare(b[0]));
+    function rebuildOptions(filter=''){
+      const f = filter.trim().toLowerCase();
+      areaSelect.innerHTML = '';
+      for (const [name, id] of AREA_ENTRIES){
+        if (f && !name.toLowerCase().includes(f)) continue;
+        const opt = document.createElement('option');
+        opt.value = String(id);
+        opt.textContent = `${name} — (${id})`;
+        areaSelect.appendChild(opt);
+      }
+      if (!areaSelect.value && areaSelect.options.length) areaSelect.selectedIndex = 0;
+    }
+    rebuildOptions();
+    areaSearch.addEventListener('input', (e)=>rebuildOptions(e.target.value));
+
+    // Helpers
+    const areaNameFromId = (id)=>{
+      id = Number(id);
+      for (const [name, val] of AREA_ENTRIES){ if (val === id) return name; }
+      return `Area ${id}`;
+    };
+
+    /* ---------- Auth + quiz open/prime ---------- */
+    const overlay=document.getElementById('quizOverlay');
+    const quizFormEl=document.getElementById('quizForm');
+    const quizCancel=document.getElementById('quizCancel');
+    const quizSaveBtn=document.getElementById('quizSaveBtn');
+    const quizCloseBtn=document.getElementById('quizCloseBtn');
+
+    const openQuiz = ()=>{ overlay.classList.remove('hidden'); requestAnimationFrame(()=>overlay.classList.add('open')); };
+    const closeQuiz= ()=>{ overlay.classList.remove('open'); setTimeout(()=>overlay.classList.add('hidden'),130); };
+
+    const sessionId = localStorage.getItem('em_session_id') ||
+      (()=>{ const id=crypto.randomUUID?.()||String(Date.now()); localStorage.setItem('em_session_id', id); return id; })();
+
+    async function silentPrimeFor(uid, prefs){
+      const url = new URL('/api/chat', CHAT_API_BASE);
+      url.searchParams.set('question', '__prefs__');
+      url.searchParams.set('sessionId', sessionId);
+      Object.entries(prefs||{}).forEach(([k,v])=>url.searchParams.set(`prefs[${k}]`, Array.isArray(v)?JSON.stringify(v):v));
+      url.searchParams.set('prefs_json', JSON.stringify(prefs||{}));
+      try { await fetchWithTimeout(url.toString(), {method:'GET'}, 1500); } catch {}
+    }
+
+    let currentUser = null;
+    onAuthStateChanged(auth, async (user)=>{
+      currentUser = user;
+      if (user){ document.getElementById("signInBtn")?.classList.add('hidden'); document.getElementById("signOutBtn")?.classList.remove('hidden'); }
+      else      { document.getElementById("signOutBtn")?.classList.add('hidden'); document.getElementById("signInBtn")?.classList.remove('hidden'); }
+
+      const uid = user?.uid || null;
+      const localDone = alreadyDoneLocal(uid);
+      if (localDone) {
+        silentPrimeFor(uid, getPrefs(uid));
+      } else {
+        let opened = false;
+        const timer = setTimeout(()=>{ openQuiz(); opened = true; }, 120);
+        try {
+          if (uid) {
+            const snap = await withTimeout(getDoc(doc(db, "profiles", uid)), 1200);
+            const remoteDone  = !!snap?.exists() && !!snap.data()?.quizDone;
+            const remotePrefs = remoteDone ? (snap.data()?.prefs || {}) : {};
+            if (remoteDone) {
+              clearTimeout(timer);
+              if (opened) closeQuiz();
+              markDoneLocal(uid, remotePrefs, false);
+              silentPrimeFor(uid, remotePrefs);
+            }
+          }
+        } catch {}
+      }
+    });
+
+    document.getElementById("signOutBtn")?.addEventListener("click", async ()=>{
+      try{ await signOut(auth);}catch{}
+      window.location.href="auth.html";
+    });
+
+    // Collect quiz form values (RESTORED)
+    function collectQuizPrefs(){
+      const get = (id)=>document.getElementById(id)?.value || "";
+      const pick = (cls)=>[...document.querySelectorAll('.'+cls+':checked')].map(i=>i.value);
+
+      const budget_min = Number(get('qBudgetMin')) || null;
+      const budget_max = Number(get('qBudgetMax')) || null;
+
+      const prefs = {
+        budget_min, budget_max,
+        areas: get('qAreas'),
+        bedrooms: get('qBedrooms'),
+        property_type: get('qType'),
+        lifestyle: pick('qLife'),
+        style: get('qStyle'),
+        commute: get('qCommute'),
+        must_haves: pick('qMust'),
+        budget_mindset: get('qBudgetMindset'),
+        notes: get('qNotes')
+      };
+      return prefs;
+    }
+
+    quizFormEl?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      quizSaveBtn.disabled = true; quizSaveBtn.textContent = 'Saving…';
+      const uid = currentUser?.uid || null;
+
+      const prefs = collectQuizPrefs();
+      markDoneLocal(uid, prefs, false);
+      closeQuiz();
+      addAI('✅ Preferences saved. Ask me for recommendations and I’ll personalize results.');
+
+      const tasks = [];
+      if (uid) tasks.push(safeSetDoc(doc(db, "profiles", uid), {quizDone:true, prefs, updatedAt:new Date()}));
+      tasks.push(silentPrimeFor(uid, prefs));
+      Promise.allSettled(tasks).finally(()=>{ quizSaveBtn.disabled=false; quizSaveBtn.textContent='Save my preferences'; });
+    });
+    quizCancel?.addEventListener('click', (e)=>{ e.preventDefault(); closeQuiz(); });
+    quizCloseBtn?.addEventListener('click', (e)=>{ e.preventDefault(); closeQuiz(); });
+
+    function extractListingsFromChatResponse(payload) {
+      if (!payload || typeof payload !== 'object') return [];
+
+      const collected = [];
+
+      const pushValue = (v) => {
+        if (!v) return;
+        if (Array.isArray(v)) {
+          v.forEach(x => x && typeof x === 'object' && collected.push(x));
+        } else if (typeof v === 'object') {
+          collected.push(v);
+        }
+      };
+
+      const scan = (obj, depth = 0) => {
+        if (!obj || typeof obj !== 'object' || depth > 3) return;
+
+        // If this is already an array of objects, treat it as listings
+        if (Array.isArray(obj)) {
+          if (obj.length && typeof obj[0] === 'object') {
+            obj.forEach(x => x && collected.push(x));
+          }
+          return;
+        }
+
+        // Common field names we might use from n8n / backend
+        pushValue(obj.listings);
+        pushValue(obj.recommendations);
+        pushValue(obj.results);
+        pushValue(obj.listing);
+        pushValue(obj.property);
+        pushValue(obj.properties);
+        pushValue(obj.top_listing);
+
+        // Recursively scan common wrapper keys
+        ['data', 'raw', 'payload', 'output', 'result', 'response'].forEach((k) => {
+          if (obj[k]) scan(obj[k], depth + 1);
+        });
+
+        // Also try to parse any JSON-looking strings inside
+        Object.values(obj).forEach((v) => {
+          if (typeof v === 'string') {
+            const s = v.trim();
+            if (s.startsWith('{') || s.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(s);
+                scan(parsed, depth + 1);
+              } catch {}
+            }
+          }
+        });
+      };
+
+      scan(payload, 0);
+      return collected;
+    }
+    /* ---------- Chat ---------- */
+    chatForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const q = chatInput.value.trim(); if(!q) return;
+      addUser(q);
+      chatInput.value=''; autosize(); typingDots.classList.remove('hidden');
+
+      const url = new URL('/api/chat', CHAT_API_BASE);
+      url.searchParams.set('question', q);
+      url.searchParams.set('sessionId', localStorage.getItem('em_session_id'));
+
+      let ans = 'Done.';
+      let responseJson = null;
+
+      try{
+        const r = await fetch(url.toString(), {method:'GET'});
+        const j = await r.json();
+        responseJson = j;
+        ans = j.answer || j.output || j.raw || ans;
+      }catch{}
+      typingDots.classList.add('hidden');
+      addAI(ans);
+
+      // NEW: if the chatbot response includes recommended listings, show them as cards
+      if (responseJson) {
+        const listings = extractListingsFromChatResponse(responseJson);
+        if (Array.isArray(listings) && listings.length) {
+          await ensureRecoListingIndex();              // already defined for "Find a property"
+          renderRecommendationResults(listings.slice(0, 5)); // uses image + View details → listing.html
+        }
+      }
+    });
+    /* ---------- Recommendation flow: chat-bubble multi-step UI ---------- */
+
+    const startRecommendBtn = document.getElementById('startRecommendBtn');
+
+    // Steps for the flow (each becomes one bot bubble with quick replies)
+    const RECO_STEPS = [
+      {
+        key: 'community',
+        question: 'First, which community are you mostly interested in?',
+        options: [
+          { label: 'Downtown',                value: 'Downtown' },
+          { label: 'Business Bay',            value: 'Business Bay' },
+          { label: 'Dubai Marina',            value: 'Dubai Marina' },
+          { label: 'JVC',                     value: 'Jumeirah Village Circle' },
+          { label: 'JLT',                     value: 'Jumeirah Lake Towers' },
+          { label: 'Any / I am flexible',     value: '' }
+        ]
+      },
+      {
+        key: 'property_type',
+        question: 'What type of property are you looking for?',
+        options: [
+          { label: 'Apartment', value: 'Apartment' },
+          { label: 'Villa',     value: 'Villa' },
+          { label: 'Townhouse', value: 'Townhouse' },
+          { label: 'Office',    value: 'Office' },
+          { label: 'Land',      value: 'Land' }
+        ]
+      },
+      {
+        key: 'bedrooms',
+        question: 'How many bedrooms do you prefer?',
+        options: [
+          { label: 'Studio', value: '0' },
+          { label: '1',      value: '1' },
+          { label: '2',      value: '2' },
+          { label: '3',      value: '3' },
+          { label: '4+',     value: '4' },
+          { label: 'Any',    value: '' }
+        ]
+      },
+      {
+        key: 'bathrooms',
+        question: 'How many bathrooms do you prefer?',
+        options: [
+          { label: '1',    value: '1' },
+          { label: '2',    value: '2' },
+          { label: '3+',   value: '3' },
+          { label: 'Any',  value: '' }
+        ]
+      },
+      {
+        key: 'price_range',
+        question: 'What is your approximate budget range?',
+        options: [
+          { label: 'AED 500k – 800k',   value: '500000-800000' },
+          { label: 'AED 800k – 1.5M',   value: '800000-1500000' },
+          { label: 'AED 1.5M – 3M',     value: '1500000-3000000' },
+          { label: 'AED 3M+',           value: '3000000-20000000' },
+          { label: 'Skip',              value: '' }
+        ]
+      },
+      {
+        key: 'metro_nearby',
+        question: 'Do you want to be close to a Metro station?',
+        options: [
+          { label: 'Yes',           value: 'true' },
+          { label: 'No',            value: 'false' },
+          { label: 'No preference', value: '' }
+        ]
+      },
+      {
+        key: 'mall_nearby',
+        question: 'Do you want to be close to a mall?',
+        options: [
+          { label: 'Yes',           value: 'true' },
+          { label: 'No',            value: 'false' },
+          { label: 'No preference', value: '' }
+        ]
+      },
+      {
+        key: 'amenities',
+        question: 'Pick the most important amenity for you.',
+        options: [
+          { label: 'Pool',     value: 'pool' },
+          { label: 'Gym',      value: 'gym' },
+          { label: 'Parking',  value: 'parking' },
+          { label: 'Balcony',  value: 'balcony' },
+          { label: 'Any',      value: '' }
+        ]
+      }
+    ];
+
+    const recommendState = {
+      active:   false,
+      stepIndex: 0,
+      answers:  {}
+    };
+    // --- Listings index so recommender cards can link to REAL DB rows ---
+    let RECO_ALL_LISTINGS = [];
+    const RECO_INDEX_BY_ID = new Map();
+
+    async function ensureRecoListingIndex() {
+      if (RECO_ALL_LISTINGS.length) return; // already loaded
+
+      try {
+        const resp = await fetch("/api/listings?limit=5000");
+        const data = await resp.json();
+
+        const rows = (data && Array.isArray(data.listings)) ? data.listings : [];
+        RECO_ALL_LISTINGS = rows;
+        RECO_INDEX_BY_ID.clear();
+
+        rows.forEach((r) => {
+          if (!r) return;
+          const key = r.listing_id ?? r.id ?? r.ListingID;
+          if (key != null) {
+            RECO_INDEX_BY_ID.set(String(key), r);
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load listings index for recommender links", err);
+      }
+    }
+    startRecommendBtn?.addEventListener('click', () => {
+      if (recommendState.active) return; // don’t stack flows
+      recommendState.active   = true;
+      recommendState.stepIndex = 0;
+      recommendState.answers   = {};
+
+      addAI('Let me ask a few quick questions so I can match you with the best properties.');
+      renderRecoStep(0);
+    });
+
+    function renderRecoStep(stepIndex) {
+      const step = RECO_STEPS[stepIndex];
+      if (!step) {
+        finishRecommendFlow();
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-start gap-3 max-w-[80%] chat-fade-in';
+      wrapper.dataset.recoStep = String(stepIndex);
+
+      wrapper.innerHTML = `
+        <img src="img/Robot_TransparentBG.png" alt="EstateMate bot"
+             class="flex-shrink-0 w-8 h-8 rounded-full bg-white object-contain shadow">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 text-gray-800">
+          <p class="font-semibold text-gray-900 mb-1">EstateMate AI</p>
+          <p class="text-gray-700">${step.question}</p>
+          <div class="mt-2 flex flex-wrap gap-2"></div>
+        </div>
+      `;
+
+      const btnRow = wrapper.querySelector('div.mt-2.flex.flex-wrap');
+      step.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = opt.label;
+        btn.dataset.value = opt.value;
+        btn.className =
+          'text-xs sm:text-sm px-3 py-1.5 rounded-full border border-indigo-200 ' +
+          'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:scale-[0.97] transition';
+        btnRow.appendChild(btn);
+      });
+
+      btnRow.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLButtonElement)) return;
+        const value = target.dataset.value ?? '';
+        const label = target.textContent || '';
+        handleRecoAnswer(stepIndex, step, value, label, wrapper);
+      });
+
+      chatBody.appendChild(wrapper);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function handleRecoAnswer(stepIndex, step, value, label, wrapper) {
+      if (!recommendState.active || stepIndex !== recommendState.stepIndex) return;
+
+      // Echo user’s choice as a user bubble
+      if (label.trim()) {
+        addUser(label.trim());
+      }
+
+      // Lock the buttons so they don’t get clicked twice
+      wrapper.querySelectorAll('button').forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-default');
+      });
+
+      // Save into state according to the step
+      switch (step.key) {
+        case 'community':
+        case 'property_type':
+          if (value) recommendState.answers[step.key] = value;
+          break;
+        case 'bedrooms':
+        case 'bathrooms':
+          if (value) recommendState.answers[step.key] = Number(value);
+          break;
+        case 'price_range':
+          if (value && value.includes('-')) {
+            const [min, max] = value.split('-').map(v => Number(v) || null);
+            if (min) recommendState.answers.min_price = min;
+            if (max) recommendState.answers.max_price = max;
+          }
+          break;
+        case 'metro_nearby':
+        case 'mall_nearby':
+          if (value === 'true')  recommendState.answers[step.key] = true;
+          if (value === 'false') recommendState.answers[step.key] = false;
+          break;
+        case 'amenities':
+          if (value) recommendState.answers.amenities = value;
+          break;
+        default:
+          break;
+      }
+
+      // Next step or finish
+      recommendState.stepIndex += 1;
+      if (recommendState.stepIndex < RECO_STEPS.length) {
+        renderRecoStep(recommendState.stepIndex);
+      } else {
+        finishRecommendFlow();
+      }
+    }
+
+    function buildRecommendPayload(ans) {
+      return {
+        community:     ans.community     || 'Downtown',
+        property_type: ans.property_type || 'Apartment',
+        bedrooms:      typeof ans.bedrooms === 'number'  ? ans.bedrooms  : 2,
+        bathrooms:     typeof ans.bathrooms === 'number' ? ans.bathrooms : 2,
+        min_price:     typeof ans.min_price === 'number' ? ans.min_price : 500000,
+        max_price:     typeof ans.max_price === 'number' ? ans.max_price : 800000,
+        metro_nearby:  typeof ans.metro_nearby === 'boolean' ? ans.metro_nearby : true,
+        mall_nearby:   typeof ans.mall_nearby === 'boolean'  ? ans.mall_nearby  : true,
+        amenities:     ans.amenities || 'pool,gym'
+      };
+    }
+    // Small loading bubble in the chat while we wait for recs
+    function showRecoLoadingBubble() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-start gap-3 max-w-[80%] chat-fade-in';
+      wrapper.dataset.recoLoading = '1';
+
+      wrapper.innerHTML = `
+        <img src="img/Robot_TransparentBG.png" alt="EstateMate bot"
+             class="flex-shrink-0 w-8 h-8 rounded-full bg-white object-contain shadow">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 text-gray-800">
+          <p class="font-semibold text-gray-900 mb-1">EstateMate AI</p>
+          <p class="text-gray-700 mb-2">
+            Great, let me fetch the best matches for you based on those preferences…
+          </p>
+          <div class="flex items-center gap-1">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      `;
+
+      chatBody.appendChild(wrapper);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      return wrapper;
+    }
+
+    function removeRecoLoadingBubble(el) {
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    }
+    async function finishRecommendFlow() {
+      const payload = buildRecommendPayload(recommendState.answers);
+      recommendState.active = false;
+
+      // show loading bubble in chat
+      const loaderEl = showRecoLoadingBubble();
+
+      try {
+        const res = await fetch('/api/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          removeRecoLoadingBubble(loaderEl);
+          addAI('I could not reach the recommendation service. Please try again in a moment.');
+          return;
+        }
+
+        const data = await res.json();
+        let listings = [];
+
+        if (Array.isArray(data)) {
+          listings = data;
+        } else if (Array.isArray(data.listings)) {
+          listings = data.listings;
+        } else if (Array.isArray(data.results)) {
+          listings = data.results;
+        } else if (Array.isArray(data.recommendations)) {
+          listings = data.recommendations;
+        }
+
+        if (!listings.length) {
+          removeRecoLoadingBubble(loaderEl);
+          addAI('I couldn’t find properties matching those filters. Try loosening your budget or area.');
+          return;
+        }
+
+        // load DB listings so we know the real property_type for each card
+        await ensureRecoListingIndex();
+
+        removeRecoLoadingBubble(loaderEl);
+        renderRecommendationResults(listings.slice(0, 5));
+      } catch (err) {
+        console.error('Recommendation error', err);
+        removeRecoLoadingBubble(loaderEl);
+        addAI('Something went wrong while fetching recommendations. Please try again in a moment.');
+      }
+    }
+    // Simple image helpers for recommendation cards (reuse same images as listing page)
+    function fallbackImagesFor(typeStr = "") {
+      const t = String(typeStr || "").toLowerCase();
+      if (t.includes("villa"))  return ["img/villa1.jpg","img/villa2.jpg","img/villa3.jpg","img/villa4.jpg","img/villa5.jpg"];
+      if (t.includes("town"))   return ["img/townhouse1.jpg","img/townhouse2.jpg","img/townhouse3.jpg"];
+      if (t.includes("office")) return ["img/office1.jpg","img/office2.jpg","img/office3.jpg","img/office4.jpg","img/office5.jpg"];
+      if (t.includes("apart"))  return ["img/apartment1.jpg","img/apartment2.jpg","img/apartment3.jpg","img/apartment4.jpg","img/apartment5.jpg"];
+      return ["img/apartment1.jpg","img/apartment2.jpg","img/apartment3.jpg","img/apartment4.jpg","img/apartment5.jpg"];
+    }
+
+    function getThumbnailForListing(rec, idx = 0) {
+      if (Array.isArray(rec.images) && rec.images.length) {
+        return rec.images[0];
+      }
+      const fallback = fallbackImagesFor(rec.property_type || rec.type || "");
+      // rotate through fallback images so they’re not all the same
+      return fallback[idx % fallback.length];
+    }
+
+    function renderRecommendationResults(listings) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-start gap-3 max-w-full chat-fade-in';
+
+      wrapper.innerHTML = `
+        <img src="img/Robot_TransparentBG.png" alt="EstateMate bot"
+             class="flex-shrink-0 w-8 h-8 rounded-full bg-white object-contain shadow">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 text-gray-800 w-full">
+          <p class="font-semibold text-gray-900 mb-1">EstateMate AI</p>
+          <p class="text-gray-700 mb-3">
+            Here are the top matches I found for you. I’ve included some quick stats so you can compare them:
+          </p>
+          <div class="grid gap-3 md:grid-cols-2" id="recoCards"></div>
+          <div class="mt-4 text-xs text-gray-600" id="recoStats"></div>
+        </div>
+      `;
+
+      const cardsEl = wrapper.querySelector('#recoCards');
+      const statsEl = wrapper.querySelector('#recoStats');
+
+      const items = listings.map((rec, idx) => ({ idx, rec }));
+      const priceItems = items.filter(i => Number.isFinite(Number(i.rec.price)));
+      const sizeItems  = items.filter(i => Number.isFinite(Number(i.rec.size_sqft)));
+
+      // --- build cards ---
+      items.forEach(({ idx, rec }) => {
+        const card = document.createElement('div');
+        card.className = 'border border-gray-200 rounded-xl p-3 bg-white/80 shadow-sm';
+
+        // Try to find the REAL DB row for this recommendation
+        const id = rec.listing_id ?? rec.id ?? rec.ListingID;
+        const dbRow = id != null ? RECO_INDEX_BY_ID.get(String(id)) : null;
+        const src   = dbRow || rec;   // use DB row if we have it
+        const price = Number(src.price ?? rec.price);
+        const priceLabel = Number.isFinite(price) ? AED(price) : 'Price not available';
+        const thumb = getThumbnailForListing(src, idx);
+
+        const title =
+          src.title ||
+          `${src.bedrooms ?? '?'}BR ${src.property_type || 'Property'} in ${src.community || src.city || 'Dubai'}`;
+
+        const locationText = src.community || src.city || 'Dubai';
+        const bedrooms  = src.bedrooms  ?? '?';
+        const bathrooms = src.bathrooms ?? '?';
+        const sizeSqft  = src.size_sqft;
+        const amenities = src.amenities;
+
+        card.innerHTML = `
+          <div class="flex gap-3">
+            <div class="w-24 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+              <img src="${thumb}" alt="Property photo" class="w-full h-full object-cover" loading="lazy" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-500 mb-1">Option #${idx + 1}</p>
+              <p class="font-semibold text-gray-900 text-sm truncate">
+                ${title}
+              </p>
+              <p class="text-xs text-gray-600 mt-1">
+                ${locationText} · ${bedrooms} bd · ${bathrooms} ba
+              </p>
+              <p class="text-xs text-gray-800 mt-1">
+                ${priceLabel}
+              </p>
+              <p class="text-[11px] text-gray-500 mt-1 truncate">
+                ${sizeSqft ? `${sizeSqft} sqft` : ''}${amenities ? ' · ' + amenities : ''}
+              </p>
+              <button
+                type="button"
+                class="mt-2 inline-flex items-center text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                data-view-listing="1"
+              >
+                View details →
+              </button>
+            </div>
+          </div>
+        `;
+        // ---- click handler: map recommender result to REAL DB row ----
+        const btn = card.querySelector('[data-view-listing]');
+        if (btn) {
+          btn.addEventListener('click', async () => {
+            const id =
+              rec.listing_id ??
+              rec.id ??
+              rec.ListingID;
+
+            if (id != null) {
+              await ensureRecoListingIndex();
+              const row = RECO_INDEX_BY_ID.get(String(id));
+
+              if (row) {
+                // this is the same full object map/browse use (has lat/lng, etc.)
+                try {
+                  sessionStorage.setItem(
+                    'selectedListing',
+                    JSON.stringify(row)
+                  );
+                } catch {}
+                window.location.href = 'listing.html';
+                return;
+              }
+            }
+
+            // Fallback: at least open with whatever we have
+            try {
+              sessionStorage.setItem('selectedListing', JSON.stringify(rec));
+            } catch {}
+            window.location.href = 'listing.html';
+          });
+        }
+
+        cardsEl.appendChild(card);
+      });
+
+      // --- comparative stats (unchanged logic) ---
+      const lines = [];
+
+      if (priceItems.length) {
+        const prices = priceItems.map(i => Number(i.rec.price));
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+
+        const cheapest = priceItems.reduce((best, cur) =>
+          Number(cur.rec.price) < Number(best.rec.price) ? cur : best
+        );
+
+        lines.push(
+          `• Price range across these matches: ${AED(minPrice)} – ${AED(maxPrice)} (avg ≈ ${AED(avgPrice)}).`
+        );
+        lines.push(
+          `• Cheapest option: #${cheapest.idx + 1} (${cheapest.rec.title || 'Option ' + (cheapest.idx + 1)}) at ${AED(cheapest.rec.price)}.`
+        );
+      }
+
+      if (sizeItems.length && priceItems.length) {
+        const ppsfItems = sizeItems
+          .map(i => {
+            const price = Number(i.rec.price);
+            const size  = Number(i.rec.size_sqft);
+            if (!Number.isFinite(price) || !Number.isFinite(size) || size <= 0) return null;
+            return { ...i, ppsf: price / size };
+          })
+          .filter(Boolean);
+
+        if (ppsfItems.length) {
+          const bestValue = ppsfItems.reduce((best, cur) =>
+            cur.ppsf < best.ppsf ? cur : best
+          );
+          lines.push(
+            `• Best value (lowest AED/sqft): #${bestValue.idx + 1} (${bestValue.rec.title || 'Option ' + (bestValue.idx + 1)}).`
+          );
+        }
+
+        const largest = sizeItems.reduce((best, cur) =>
+          Number(cur.rec.size_sqft) > Number(best.rec.size_sqft) ? cur : best
+        );
+        lines.push(
+          `• Largest home by size: #${largest.idx + 1} at about ${largest.rec.size_sqft} sqft.`
+        );
+      }
+
+      if (!lines.length) {
+        lines.push('Prices and sizes are partially missing, so I showed the best matches without detailed stats.');
+      }
+
+      statsEl.textContent = lines.join(' ');
+
+      chatBody.appendChild(wrapper);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    /* ======== Prediction modal logic (unchanged) ======== */
+    const predictOverlay   = document.getElementById('predictOverlay');
+    const openPredictBtn   = document.getElementById('openPredictBtn');
+    const predictCloseBtn  = document.getElementById('predictCloseBtn');
+    const predictCancelBtn = document.getElementById('predictCancelBtn');
+    const predictForm      = document.getElementById('predictForm');
+    const predictSubmitBtn = document.getElementById('predictSubmitBtn');
+
+    const openPredict = ()=>{ predictOverlay.classList.remove('hidden'); requestAnimationFrame(()=>predictOverlay.classList.add('open')); };
+    const closePredict= ()=>{ predictOverlay.classList.remove('open'); setTimeout(()=>predictOverlay.classList.add('hidden'),130); };
+
+    openPredictBtn?.addEventListener('click', openPredict);
+    predictCloseBtn?.addEventListener('click', closePredict);
+    predictCancelBtn?.addEventListener('click', closePredict);
+    document.querySelector('[data-predict-close]')?.addEventListener('click', closePredict);
+
+    function monthToSinCos(m){
+      const month = Number(m)|| (new Date().getMonth()+1);
+      const angle = 2*Math.PI*month/12;
+      return { dbmonth_sin: Number(Math.sin(angle).toFixed(6)), dbmonth_cos: Number(Math.cos(angle).toFixed(6)) };
+    }
+    function AED(n){ return `AED ${Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`; }
+
+    predictForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      predictSubmitBtn.disabled = true;
+      predictSubmitBtn.textContent = 'Predicting…';
+
+      const fd = new FormData(predictForm);
+      const area_id = Number(fd.get('area_id')); // from dropdown
+      const area_name = areaNameFromId(area_id);
+      const monthBits = monthToSinCos(fd.get('month'));
+      const pType  = fd.get('ptype') || 'Unit';
+      const rType  = fd.get('regtype') || 'Existing Properties';
+
+      const payload = {
+        area_id,
+        has_parking: Number(fd.get('has_parking')||0),
+        procedure_area: Number(fd.get('procedure_area')),
+        mall_nearby: Number(fd.get('mall_nearby')||0),
+        metro_nearby: Number(fd.get('metro_nearby')||0),
+        near_airport: Number(fd.get('near_airport')||0),
+        rooms_count: Number(fd.get('rooms_count')||0),
+        "property_type_en_Building": Number(pType==='Building'),
+        "property_type_en_Land":     Number(pType==='Land'),
+        "property_type_en_Unit":     Number(pType==='Unit'),
+        "property_type_en_Villa":    Number(pType==='Villa'),
+        "reg_type_en_Existing Properties": Number(rType==='Existing Properties'),
+        "reg_type_en_Off-Plan Properties": Number(rType==='Off-Plan Properties'),
+        ...monthBits
+      };
+
+      try{
+        const r = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const j = await r.json();
+
+        const summary =
+`📈 Predicted price
+• Area: ${area_name} (${area_id})
+• Rooms: ${payload.rooms_count}
+• Parking: ${payload.has_parking ? 'Yes':'No'}
+• Type: ${pType} / ${rType}
+• Mall/Metro/Airport: ${payload.mall_nearby}/${payload.metro_nearby}/${payload.near_airport}
+• Size: ${payload.procedure_area} sqm`;
+
+        addUser('Predict price');
+
+        if (Number.isFinite(Number(j.predicted_price))) {
+          const rule = j.used_rule ? `\n\n_(interpreted using: ${j.used_rule.replaceAll('_',' ')})_` : '';
+          addAI(`${summary}\n\n**Model estimate:** ${AED(j.predicted_price)}${rule}`);
+        } else {
+          addAI(`${summary}\n\nI couldn’t compute a sensible total from the model’s reply.\nRaw: ${JSON.stringify(j)}`);
+        }
+      } catch (err) {
+        addUser('Predict price');
+        addAI('Prediction failed — please try again in a moment.');
+      } finally {
+        predictSubmitBtn.disabled = false;
+        predictSubmitBtn.textContent = 'Predict';
+        closePredict();
+      }
+    });
+  </script>
+</body>
+</html>

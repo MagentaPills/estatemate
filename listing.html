@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Listing – EstateMate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{background-color:#f9fafb;background-image:
+      radial-gradient(circle at 20% 20%, rgba(99,102,241,0.08) 0%, rgba(255,255,255,0) 70%),
+      radial-gradient(circle at 80% 30%, rgba(168,85,247,0.05) 0%, rgba(255,255,255,0) 70%);
+      background-repeat:no-repeat;}
+    .slider-frame{position:relative;overflow:hidden}
+    .slider-track{display:flex;transition:transform .3s ease-in-out;width:100%;height:100%}
+    .slider-slide{min-width:100%;height:100%;background:#f3f4f6;display:flex;align-items:center;justify-content:center}
+    .slider-slide img{width:100%;height:100%;object-fit:cover}
+    .slider-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.55);color:#fff;width:36px;height:36px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;cursor:pointer}
+    .slider-btn:hover{background:rgba(0,0,0,.7)}
+    .slider-btn.prev{left:12px}.slider-btn.next{right:12px}
+    .slider-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;pointer-events:none}
+    .slider-dot{width:8px;height:8px;border-radius:9999px;background:#d1d5db}
+    .slider-dot.active{background:#6366f1}
+  </style>
+</head>
+<body class="min-h-screen text-gray-900 flex flex-col">
+  <header class="bg-white border-b border-gray-100 relative overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)] pointer-events-none"></div>
+    <div class="relative z-10 max-w-7xl mx-auto flex items-center justify-between px-4 py-3 sm:px-6">
+      <a href="index.html" class="flex items-center gap-2 text-xl font-semibold text-indigo-600">
+        <span>EstateMate</span>
+        <span class="text-[11px] font-medium text-indigo-600/80 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200/60">AI Preview</span>
+      </a>
+      <nav class="flex items-center gap-6 text-[15px] font-medium text-gray-700">
+        <a href="dashboard.html" class="hover:text-indigo-600 transition">Dashboard</a>
+        <a href="browse.html"   class="hover:text-indigo-600 transition">Browse</a>
+        <a href="map.html"      class="hover:text-indigo-600 transition">Map</a>
+        <a href="about.html"    class="hover:text-indigo-600 transition">About</a>
+        <a href="contact.html"  class="hover:text-indigo-600 transition">Contact</a>
+        <a id="signInBtn" href="auth.html"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign in</a>
+        <button id="signOutBtn" type="button"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-10">
+    <header class="max-w-4xl">
+      <h1 id="propTitle" class="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">Loading…</h1>
+      <p id="propAddress" class="text-lg text-gray-600 mt-2 leading-relaxed">&nbsp;</p>
+    </header>
+
+    <section class="mt-8 grid lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl shadow overflow-hidden slider-frame w-full h-[360px] md:h-[480px]" id="sliderWrapper">
+        <div id="sliderTrack" class="slider-track"></div>
+        <button id="sliderPrev" class="slider-btn prev" aria-label="Previous photo">&#10094;</button>
+        <button id="sliderNext" class="slider-btn next" aria-label="Next photo">&#10095;</button>
+        <div id="sliderDots" class="slider-dots"></div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow overflow-hidden min-h-[360px] md:min-h-[480px]">
+        <iframe id="mapFrame" class="w-full h-full border-0" loading="lazy" allowfullscreen="" referrerpolicy="no-referrer-when-downgrade" src=""></iframe>
+      </div>
+    </section>
+
+    <section class="mt-8 grid lg:grid-cols-3 gap-6 text-[15px] leading-relaxed">
+      <article class="bg-white rounded-xl shadow border border-white/40 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Property Details</h2>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 text-gray-700">
+          <dt class="text-gray-500">Type</dt><dd id="dType" class="font-medium text-gray-900">—</dd>
+          <dt class="text-gray-500">Bedrooms</dt><dd id="dBeds" class="font-medium text-gray-900">—</dd>
+          <dt class="text-gray-500">Bathrooms</dt><dd id="dBaths" class="font-medium text-gray-900">—</dd>
+          <dt class="text-gray-500">Size</dt><dd id="dSize" class="font-medium text-gray-900">—</dd>
+          <dt class="text-gray-500">View</dt><dd id="dView" class="font-medium text-gray-900">—</dd>
+          <dt class="text-gray-500">Parking</dt><dd id="dParking" class="font-medium text-gray-900">—</dd>
+        </dl>
+      </article>
+
+      <article class="bg-white rounded-xl shadow border border-white/40 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Location</h2>
+        <p id="dLocation" class="text-gray-700"></p>
+        <p id="dCoords" class="text-gray-500 text-sm mt-2"></p>
+      </article>
+
+      <!-- BUY BOX + AI ESTIMATE -->
+      <aside class="bg-white rounded-xl shadow border border-white/40 p-6 flex flex-col gap-6">
+        <div>
+          <div id="priceText" class="text-2xl font-extrabold text-indigo-600 leading-tight">AED —</div>
+          <div id="summaryText" class="text-sm text-gray-600 mt-1">&nbsp;</div>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 shadow-sm p-4">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-base font-semibold text-gray-900">AI model estimate</h3>
+            <span id="compBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">—</span>
+          </div>
+          <p id="modelAED" class="text-xl font-extrabold mt-1 text-gray-900">AED —</p>
+          <p id="modelNote" class="text-xs text-gray-500 mt-1">Calculating…</p>
+
+          <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label class="text-xs text-gray-600">Area (to fine-tune)</label>
+            <select id="areaPicker" class="sm:col-start-2 w-full border rounded-md px-2 py-1 text-sm"></select>
+
+            <button id="rerunBtn"
+              class="sm:col-span-2 mt-1 inline-flex items-center justify-center rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 text-sm shadow active:scale-[0.98] transition">
+              Re-run estimate
+            </button>
+          </div>
+        </div>
+
+        <!-- Contact box -->
+        <form class="flex flex-col gap-4">
+          <div><label class="block text-sm text-gray-600 mb-1">Full name</label>
+            <input id="buyerName" class="w-full rounded-lg border-gray-300 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] px-3 py-2" placeholder="Your name"/></div>
+          <div><label class="block text-sm text-gray-600 mb-1">Email</label>
+            <input id="buyerEmail" type="email" class="w-full rounded-lg border-gray-300 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] px-3 py-2" placeholder="you@email.com"/></div>
+          <div><label class="block text-sm text-gray-600 mb-1">Phone</label>
+            <input id="buyerPhone" class="w-full rounded-lg border-gray-300 focus:ring-indigo-400 focus:border-indigo-400 text-[15px] px-3 py-2" placeholder="+971…"/></div>
+          <button type="button" class="mt-2 inline-flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 text-[15px] shadow-md active:scale-[0.98] transition">Buy this property</button>
+        </form>
+      </aside>
+    </section>
+  </main>
+
+  <!-- Firebase + page wiring -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZpPsSgm9bnBeed7nRuHJOBc7MGhH0jpQ",
+      authDomain: "estatemate-d54e1.firebaseapp.com",
+      projectId: "estatemate-d54e1",
+      storageBucket: "estatemate-d54e1.firebasestorage.app",
+      messagingSenderId: "745236119215",
+      appId: "1:745236119215:web:7170303f7be0010ad79e5a",
+      measurementId: "G-RXWF5891QM"
+    };
+
+    const app  = window._emApp || initializeApp(firebaseConfig);
+    window._emApp = app;
+    const auth = getAuth(app);
+
+    // navbar & form
+    const signInBtn  = document.getElementById("signInBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+    const buyerName  = document.getElementById("buyerName");
+    const buyerEmail = document.getElementById("buyerEmail");
+    const buyerPhone = document.getElementById("buyerPhone");
+    const show=(el)=>el?.classList.remove("hidden"); const hide=(el)=>el?.classList.add("hidden");
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        hide(signInBtn); show(signOutBtn);
+        if (user.displayName && !buyerName.value)  buyerName.value  = user.displayName;
+        if (user.email && !buyerEmail.value)       buyerEmail.value = user.email;
+        if (user.phoneNumber && !buyerPhone.value) buyerPhone.value = user.phoneNumber;
+      } else { show(signInBtn); hide(signOutBtn); }
+    });
+    signOutBtn?.addEventListener("click", async () => { try{await signOut(auth);}catch{} window.location.href="auth.html"; });
+
+    // DOM refs
+    const propTitle   = document.getElementById("propTitle");
+    const propAddress = document.getElementById("propAddress");
+    const mapFrame    = document.getElementById("mapFrame");
+    const dType  = document.getElementById("dType");
+    const dBeds  = document.getElementById("dBeds");
+    const dBaths = document.getElementById("dBaths");
+    const dSize  = document.getElementById("dSize");
+    const dView  = document.getElementById("dView");
+    const dParking = document.getElementById("dParking");
+    const dLocation = document.getElementById("dLocation");
+    const dCoords   = document.getElementById("dCoords");
+    const priceText   = document.getElementById("priceText");
+    const summaryText = document.getElementById("summaryText");
+
+    const compBadge = document.getElementById("compBadge");
+    const modelAED  = document.getElementById("modelAED");
+    const modelNote = document.getElementById("modelNote");
+    const areaPicker= document.getElementById("areaPicker");
+    const rerunBtn  = document.getElementById("rerunBtn");
+
+    const sliderTrack=document.getElementById("sliderTrack");
+    const sliderPrev =document.getElementById("sliderPrev");
+    const sliderNext =document.getElementById("sliderNext");
+    const sliderDots =document.getElementById("sliderDots");
+
+    // helpers
+    const fmtAED = (n)=> (n==null||isNaN(n)) ? "AED —" : "AED " + Number(n).toLocaleString("en-AE");
+    const parseNumber = (v)=> {
+      if (typeof v === "number") return v;
+      if (!v) return 0;
+      const cleaned = String(v).replace(/[^0-9.]/g,""); // removes commas etc.
+      return Number(cleaned||0);
+    };
+    const sqftToSqm = (sqft)=> Number((parseNumber(sqft) / 10.7639).toFixed(2)); // ★ robust conversion
+    const whereLine=(row)=>[row.building,row.community,row.city].filter(Boolean).join(", ");
+    const summaryLine=(row)=>[row.bedrooms?`${row.bedrooms} bd`:null,row.bathrooms?`${row.bathrooms} ba`:null,row.size_sqft?`${parseNumber(row.size_sqft).toLocaleString()} sqft`:null].filter(Boolean).join(" · ");
+
+    function fallbackImagesFor(typeStr=""){
+      const t=typeStr.toLowerCase();
+      if (t.includes("villa")) return ["img/villa1.jpg","img/villa2.jpg","img/villa3.jpg","img/villa4.jpg","img/villa5.jpg"];
+      if (t.includes("town"))  return ["img/townhouse1.jpg","img/townhouse2.jpg","img/townhouse3.jpg"];
+      if (t.includes("office"))return ["img/office1.jpg","img/office2.jpg","img/office3.jpg","img/office4.jpg","img/office5.jpg"];
+      if (t.includes("apart")) return ["img/apartment1.jpg","img/apartment2.jpg","img/apartment3.jpg","img/apartment4.jpg","img/apartment5.jpg"];
+      return ["img/apartment1.jpg","img/apartment2.jpg","img/apartment3.jpg","img/apartment4.jpg","img/apartment5.jpg"];
+    }
+    function buildSlider(images){
+      sliderTrack.innerHTML=""; sliderDots.innerHTML="";
+      images.forEach((src,i)=>{
+        const slide=document.createElement("div"); slide.className="slider-slide";
+        slide.innerHTML=`<img src="${src}" alt="Property photo ${i+1}"/>`;
+        sliderTrack.appendChild(slide);
+        const dot=document.createElement("div"); dot.className="slider-dot"+(i===0?" active":""); dot.dataset.idx=i; sliderDots.appendChild(dot);
+      });
+    }
+    function updateSliderPosition(idx){ sliderTrack.style.transform=`translateX(${idx*-100}%)`; [...sliderDots.children].forEach((d,di)=>d.classList.toggle("active",di===idx)); }
+    let sliderIndex=0, sliderCount=0;
+    sliderPrev.addEventListener("click",()=>{ if(!sliderCount) return; sliderIndex=(sliderIndex-1+sliderCount)%sliderCount; updateSliderPosition(sliderIndex); });
+    sliderNext.addEventListener("click",()=>{ if(!sliderCount) return; sliderIndex=(sliderIndex+1)%sliderCount; updateSliderPosition(sliderIndex); });
+    sliderDots.addEventListener("click",(e)=>{ if(e.target.classList.contains("slider-dot")){ sliderIndex=+e.target.dataset.idx; updateSliderPosition(sliderIndex); } });
+
+    function mapEmbed(lat,lng,zoom=15){ if(!isFinite(lat)||!isFinite(lng)) return ""; return `https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}&z=${zoom}&output=embed`; }
+
+    // area mapping (trimmed sample; expand as needed)
+    const AREA_MAP = {
+      "Business Bay":526,"Palm Jumeirah":410,"Marsa Dubai":330,"Jumeirah First":317,"Jumeirah Second":375,"Jumeirah Third":318,
+      "Al Barsha First":368,"Al Barsha Second":393,"Al Barsha Third":369,"Al Wasl":364,"Dubai Investment Park First":458,"Dubai Investment Park Second":459,
+      "Mirdif":232,"Nad Al Shiba":285,"Al Safouh First":307,"Al Safouh Second":371,"Zaabeel First":331,"Zaabeel Second":332
+    };
+    const AREA_ENTRIES = Object.entries(AREA_MAP).sort((a,b)=>a[0].localeCompare(b[0]));
+    function bestAreaIdFromListing(row){
+      const key=(row.community||"").trim();
+      if (AREA_MAP[key]) return AREA_MAP[key];
+      const text=((row.title||"")+" "+(row.community||"")+" "+(row.city||"")).toLowerCase();
+      if (text.includes("business bay")) return AREA_MAP["Business Bay"];
+      if (text.includes("marina") || text.includes("marsa dubai")) return AREA_MAP["Marsa Dubai"];
+      if (text.includes("palm jumeirah")) return AREA_MAP["Palm Jumeirah"];
+      if (text.includes("barsha")) return AREA_MAP["Al Barsha First"];
+      return AREA_ENTRIES.length ? AREA_ENTRIES[0][1] : 350;
+    }
+    function populateAreaPicker(selectedId){
+      areaPicker.innerHTML=""; AREA_ENTRIES.forEach(([name,id])=>{
+        const opt=document.createElement("option"); opt.value=String(id); opt.textContent=`${name} — (${id})`;
+        if (id===selectedId) opt.selected=true; areaPicker.appendChild(opt);
+      });
+    }
+
+    function monthToSinCos(m){ const month=Number(m)||(new Date().getMonth()+1); const ang=2*Math.PI*month/12; return {dbmonth_sin:+Math.sin(ang).toFixed(6), dbmonth_cos:+Math.cos(ang).toFixed(6)}; }
+    function oneHotType(typeStr=""){ const t=typeStr.toLowerCase();
+      const isVilla=t.includes("villa")||t.includes("town"); const isLand=t.includes("land"); const isBldg=t.includes("building")||t.includes("tower")||t.includes("office");
+      const isUnit=!(isVilla||isLand||isBldg);
+      return {"property_type_en_Building":isBldg?1:0,"property_type_en_Land":isLand?1:0,"property_type_en_Unit":isUnit?1:0,"property_type_en_Villa":isVilla?1:0};
+    }
+
+    async function runEstimateFor(listing, forcedAreaId=null){
+      modelAED.textContent="AED —";
+      compBadge.textContent="—";
+      compBadge.className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-700";
+      modelNote.textContent="Calculating…";
+
+      const area_id = forcedAreaId ?? bestAreaIdFromListing(listing);
+      const sqft = parseNumber(listing.size_sqft);
+      const sqm  = sqftToSqm(sqft); // ★ the fix
+
+      const parking = Number(listing.parking_spaces||0)>0 ? 1:0;
+      const rooms   = Number(listing.bedrooms||0);
+      const typeHot = oneHotType(listing.property_type||"");
+
+      const payload = {
+        area_id,
+        has_parking: parking,
+        procedure_area: (sqm > 0 ? sqm : 60),  // ★ send sqm to model
+        mall_nearby: 0, metro_nearby: 0, near_airport: 0,
+        rooms_count: rooms,
+        "reg_type_en_Existing Properties": 1,
+        "reg_type_en_Off-Plan Properties": 0,
+        ...typeHot,
+        ...monthToSinCos()
+      };
+
+      try{
+        const r = await fetch('/api/predict', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const j = await r.json();
+        const pred = Number(j?.predicted_price);
+
+        // Show the sqm we actually sent (for sanity check)
+        modelNote.textContent = `Size to model: ${isFinite(sqm)?sqm:'—'} sqm (from ${isFinite(sqft)?sqft:'—'} sqft)` + (j?.used_rule?` · Interpreted using: ${String(j.used_rule).replaceAll('_',' ')}` : '');
+
+        if (isFinite(pred)) {
+          modelAED.textContent = fmtAED(pred);
+          const ask = Number(listing.price||0);
+          if (ask>0) {
+            const ratio = (ask - pred) / pred;
+            const pct   = Math.round(Math.abs(ratio)*100);
+            if (ratio > 0.10) { compBadge.textContent=`Overpriced ~${pct}%`; compBadge.className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700"; }
+            else if (ratio < -0.10) { compBadge.textContent=`Underpriced ~${pct}%`; compBadge.className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700"; }
+            else { compBadge.textContent="Fairly priced (±10%)"; compBadge.className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700"; }
+          } else {
+            compBadge.textContent="Model estimate only";
+          }
+        } else {
+          modelAED.textContent="AED —";
+          modelNote.textContent="Prediction returned no numeric value. Check inputs.";
+        }
+      } catch(e){
+        console.error(e);
+        modelAED.textContent="AED —";
+        modelNote.textContent="Prediction failed. Try again.";
+      }
+    }
+
+    // get listing object
+    let listing=null; try{ listing = JSON.parse(sessionStorage.getItem("selectedListing")||"null"); }catch{}
+    if (!listing){
+      propTitle.textContent="Property not found";
+      propAddress.textContent="Go back and choose another property.";
+    } else {
+      // headline
+      const brPart = listing.bedrooms ? `${listing.bedrooms}BR` : "";
+      const typePart = listing.property_type || "Property";
+      const placePart= listing.community || listing.city || "";
+      propTitle.textContent = listing.title || [brPart,typePart,placePart].filter(Boolean).join(" ");
+      propAddress.textContent = whereLine(listing) || "Dubai";
+
+      // images
+      let imageList = Array.isArray(listing.images)&&listing.images.length ? listing.images.slice() : fallbackImagesFor(listing.property_type);
+      buildSlider(imageList); sliderIndex=0; sliderCount=imageList.length; updateSliderPosition(0);
+
+      // map
+      const lat=parseFloat(listing.latitude), lng=parseFloat(listing.longitude);
+      const mapSrc=mapEmbed(lat,lng); if(mapSrc) mapFrame.src=mapSrc; else mapFrame.parentElement.classList.add("hidden");
+
+      // details
+      dType.textContent    = listing.property_type || "—";
+      dBeds.textContent    = listing.bedrooms ?? "—";
+      dBaths.textContent   = listing.bathrooms ?? "—";
+      dSize.textContent    = listing.size_sqft ? `${parseNumber(listing.size_sqft).toLocaleString()} sqft` : "—";
+      dView.textContent    = listing.view || "—";
+      dParking.textContent = (listing.parking_spaces != null) ? `${listing.parking_spaces}` : "—";
+      dLocation.textContent= whereLine(listing) || "Dubai";
+      dCoords.textContent  = (isFinite(lat)&&isFinite(lng)) ? `Lat ${lat}, Lng ${lng}` : "Coordinates unavailable";
+
+      // buy box
+      priceText.textContent   = fmtAED(listing.price);
+      summaryText.textContent = summaryLine(listing);
+
+      // AI estimate
+      const initialAreaId = bestAreaIdFromListing(listing);
+      populateAreaPicker(initialAreaId);
+      runEstimateFor(listing, initialAreaId);
+      rerunBtn.addEventListener('click', ()=> runEstimateFor(listing, Number(areaPicker.value)||initialAreaId));
+    }
+  </script>
+</body>
+</html>

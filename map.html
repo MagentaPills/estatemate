@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Map View – EstateMate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet core -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- MarkerCluster plugin -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <style>
+    body {
+      background-color: #f9fafb;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(99,102,241,0.08) 0%, rgba(255,255,255,0) 70%),
+        radial-gradient(circle at 80% 30%, rgba(168,85,247,0.05) 0%, rgba(255,255,255,0) 70%);
+      background-repeat: no-repeat;
+    }
+    #map { height: 76vh; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+    /* Popup card with clipped image */
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+      overflow: hidden;  /* keep image inside rounded popup */
+      padding: 0;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .leaflet-popup-content { margin: 0 !important; }
+    .leaflet-popup-tip { background: #fff; }
+    .popup-card { width: 260px; }
+    .popup-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+    }
+    .popup-body { padding: 10px 12px 12px 12px; }
+  </style>
+</head>
+<body class="min-h-screen text-gray-900 flex flex-col">
+
+  <!-- HEADER -->
+  <header class="bg-white border-b border-gray-100 relative overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)] pointer-events-none"></div>
+    <div class="relative z-10 max-w-7xl mx-auto flex items-center justify-between px-4 py-3 sm:px-6">
+      <a href="index.html" class="flex items-center gap-2 text-xl font-semibold text-indigo-600">
+        <span>EstateMate</span>
+        <span class="text-[11px] font-medium text-indigo-600/80 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200/60">
+          AI Preview
+        </span>
+      </a>
+      <nav class="flex items-center gap-6 text-[15px] font-medium text-gray-700">
+        <a href="dashboard.html" class="hover:text-indigo-600 transition">Dashboard</a>
+        <a href="browse.html"   class="hover:text-indigo-600 transition">Browse</a>
+        <a href="map.html"      class="text-indigo-600 font-semibold">Map</a>
+        <a href="about.html"    class="hover:text-indigo-600 transition">About</a>
+        <a href="contact.html"  class="hover:text-indigo-600 transition">Contact</a>
+        <a id="signInBtn" href="auth.html"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign in</a>
+        <button id="signOutBtn" type="button"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign out</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <section class="text-center max-w-3xl mx-auto mb-4">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">Properties Map</h1>
+      <p class="mt-3 text-gray-600 leading-relaxed">Showing clustered pins for the entire listings dataset. Click a pin to preview and jump to the full listing.</p>
+    </section>
+
+    <!-- Controls -->
+    <section class="mb-4">
+      <div class="bg-white rounded-xl border border-white/60 shadow p-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-700">Dataset:</span>
+          <span class="text-sm font-semibold text-indigo-700">All listings (clustered)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-700">City:</label>
+          <input id="cityInput" class="rounded-lg border-gray-300 focus:ring-indigo-400 focus:border-indigo-400 text-sm px-3 py-2" placeholder="(optional) e.g., Dubai"/>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-700">Min price:</label>
+          <input id="minPriceInput" type="number" min="0" step="1000" class="w-32 rounded-lg border-gray-300 focus:ring-indigo-400 focus:border-indigo-400 text-sm px-3 py-2" placeholder="e.g. 500000"/>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-700">Max price:</label>
+          <input id="maxPriceInput" type="number" min="0" step="1000" class="w-32 rounded-lg border-gray-300 focus:ring-indigo-400 focus:border-indigo-400 text-sm px-3 py-2" placeholder="e.g. 3000000"/>
+        </div>
+        <button id="applyBtn" class="ml-auto sm:ml-0 inline-flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 text-sm shadow">
+          Apply
+        </button>
+      </div>
+      <p id="countText" class="mt-2 text-center text-xs text-gray-500">Loading…</p>
+    </section>
+
+    <!-- MAP -->
+    <div id="map"></div>
+
+    <p id="errorBox" class="hidden mt-4 text-center text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3"></p>
+  </main>
+
+  <!-- Firebase + Map logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut }
+      from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+    /* ==== Firebase ==== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZpPsSgm9bnBeed7nRuHJOBc7MGhH0jpQ",
+      authDomain: "estatemate-d54e1.firebaseapp.com",
+      projectId: "estatemate-d54e1",
+      storageBucket: "estatemate-d54e1.firebasestorage.app",
+      messagingSenderId: "745236119215",
+      appId: "1:745236119215:web:7170303f7be0010ad79e5a",
+      measurementId: "G-RXWF5891QM"
+    };
+
+    const app = window._emApp || initializeApp(firebaseConfig);
+    window._emApp = app;
+    const auth = getAuth(app);
+    const signInBtn  = document.getElementById("signInBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+    const show = el => el && el.classList.remove("hidden");
+    const hide = el => el && el.classList.add("hidden");
+    onAuthStateChanged(auth, (user) => { if (user) { hide(signInBtn); show(signOutBtn); } else { show(signInBtn); hide(signOutBtn); }});
+    signOutBtn?.addEventListener("click", async () => { try{ await signOut(auth);}catch(e){} window.location.href = "auth.html"; });
+
+    /* ==== Map + clustering ==== */
+    const map = L.map('map', { preferCanvas: true }).setView([25.2048, 55.2708], 10); // Dubai
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const clusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 60
+    }).addTo(map);
+
+    const errorBox   = document.getElementById("errorBox");
+    const countText  = document.getElementById("countText");
+    const cityInput  = document.getElementById("cityInput");
+    const minPriceInput = document.getElementById("minPriceInput");
+    const maxPriceInput = document.getElementById("maxPriceInput");
+    const applyBtn   = document.getElementById("applyBtn");
+
+    const fmtAED = (n) => (n==null||isNaN(n)) ? "Price on request" : "AED " + Number(n).toLocaleString("en-AE");
+    const fallbackThumbFor = (typeStr="") => {
+      const t = String(typeStr||"").toLowerCase();
+      if (t.includes("villa"))  return "img/villa1.jpg";
+      if (t.includes("town"))   return "img/townhouse1.jpg";
+      if (t.includes("office")) return "img/office1.jpg";
+      return "img/apartment1.jpg";
+    };
+
+    let ALL_LISTINGS = [];
+    const indexById = new Map(); // listing_id -> row
+
+    async function fetchAll() {
+      try {
+        errorBox.classList.add("hidden");
+        countText.textContent = "Loading listings…";
+        // Pull a large chunk; increase if you expect more than 5000 rows
+        const res = await fetch("/api/listings?limit=5000");
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "API error");
+        const rows = (data.listings || []).filter(r => r && r.latitude && r.longitude);
+        ALL_LISTINGS = rows;
+        indexById.clear();
+        rows.forEach(r => indexById.set(String(r.listing_id ?? `${r.latitude},${r.longitude},${r.price}`), r));
+        countText.textContent = `Loaded ${rows.length.toLocaleString()} listings.`;
+      } catch (err) {
+        console.error(err);
+        errorBox.textContent = "Could not load map listings. Check the API server and data format.";
+        errorBox.classList.remove("hidden");
+        countText.textContent = "";
+      }
+    }
+
+    function filterByInputs(rows) {
+      const city = cityInput.value.trim().toLowerCase();
+      const minP = Number(minPriceInput.value || 0);
+      const maxP = Number(maxPriceInput.value || 0);
+      return rows.filter(r=>{
+        const cityOk = !city || String(r.city||"").toLowerCase().includes(city);
+        const price  = Number(r.price||0);
+        const minOk  = !minP || price >= minP;
+        const maxOk  = !maxP || price <= maxP;
+        return cityOk && minOk && maxOk;
+      });
+    }
+
+    // handoff to listing.html via sessionStorage
+    window.__viewListingById = function(idStr){
+      try {
+        const row = indexById.get(String(idStr));
+        if (!row) return false;
+        sessionStorage.setItem("selectedListing", JSON.stringify(row));
+        window.location.href = "listing.html";
+        return false;
+      } catch { return false; }
+    };
+
+    function renderPins() {
+      if (!ALL_LISTINGS.length) return;
+      clusterGroup.clearLayers();
+
+      const rows = filterByInputs(ALL_LISTINGS);
+
+      const markers = [];
+      for (const r of rows) {
+        const lat = Number(r.latitude), lng = Number(r.longitude);
+        if (!isFinite(lat) || !isFinite(lng)) continue;
+
+        const img = (Array.isArray(r.images) && r.images[0]) ? r.images[0] : fallbackThumbFor(r.property_type);
+        const idStr = String(r.listing_id ?? `${lat},${lng},${r.price}`);
+        indexById.set(idStr, r);
+
+        const html = `
+          <div class="popup-card">
+            <img src="${img}" alt="Property photo"/>
+            <div class="popup-body">
+              <div class="font-semibold text-indigo-600">${fmtAED(r.price)}</div>
+              <div class="text-sm text-gray-800">${r.property_type || "Property"}${r.bedrooms ? ` · ${r.bedrooms} bd` : ""}${r.bathrooms ? ` · ${r.bathrooms} ba` : ""}</div>
+              <div class="text-xs text-gray-500 mt-1">${[r.building, r.community, r.city].filter(Boolean).join(", ")}</div>
+              <div class="mt-2">
+                <a href="listing.html"
+                   onclick="return window.__viewListingById('${idStr}')"
+                   class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-sm font-semibold">
+                  View listing
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+
+        markers.push(L.marker([lat,lng]).bindPopup(html));
+      }
+
+      if (markers.length) {
+        clusterGroup.addLayers(markers);
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds(), { padding: [30,30] });
+      }
+      countText.textContent = `Showing ${markers.length.toLocaleString()} pins`;
+    }
+
+    // Initial load + apply
+    await fetchAll();
+    renderPins();
+    document.getElementById("applyBtn").addEventListener("click", renderPins);
+  </script>
+</body>
+</html>

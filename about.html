@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>About – EstateMate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+  <header class="bg-white border-b border-gray-100 relative overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.07),transparent_60%)] pointer-events-none"></div>
+    <div class="relative z-10 max-w-7xl mx-auto flex items-center justify-between px-4 py-3 sm:px-6">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="text-xl font-semibold text-indigo-600 flex items-center gap-2">
+          <span>EstateMate</span>
+          <span class="text-[11px] font-medium text-indigo-600/80 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200/60">AI Preview</span>
+        </a>
+      </div>
+      <nav class="flex items-center gap-6 text-[15px] font-medium text-gray-700">
+        <a href="dashboard.html" class="hover:text-indigo-600 transition">Dashboard</a>
+        <a href="browse.html"   class="hover:text-indigo-600 transition">Browse</a>
+        <a href="map.html"      class="hover:text-indigo-600 transition">Map</a>
+        <a href="about.html"    class="text-indigo-600 font-semibold">About</a>
+        <a href="contact.html"  class="hover:text-indigo-600 transition">Contact</a>
+        <a id="signInBtn" href="auth.html"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign in</a>
+        <button id="signOutBtn" type="button"
+           class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-full hover:bg-indigo-700 transition whitespace-nowrap hidden">Sign out</button>
+      </nav>
+    </div>
+  </header>
+
+
+  <!-- Page content -->
+  <main class="flex-1 relative z-10 max-w-4xl w-full mx-auto px-6 py-12">
+    <section class="bg-white/80 backdrop-blur border border-white/40 shadow-xl rounded-2xl p-8 space-y-6">
+      <h1 class="text-3xl font-extrabold text-gray-900">About EstateMate</h1>
+
+      <p class="text-gray-700 leading-relaxed">
+        EstateMate is your AI real estate co-pilot. We’re here to get you from
+        “I’m just browsing” to “I’m confident signing” a lot faster — and with a
+        lot less spammy phone calls.
+      </p>
+
+      <p class="text-gray-700 leading-relaxed">
+        Ask us anything in plain English. “Show me modern townhouses with
+        parking under 2M AED.” “What’s the rental yield on this 1BR in Marina?”
+        “Which areas are actually quiet if I work from home?”
+      </p>
+
+      <p class="text-gray-700 leading-relaxed">
+        We surface listings that match, highlight pros/cons, and prep you for
+        next steps like viewing, paperwork, and budgeting. No fluff — just
+        clarity.
+      </p>
+
+      <div class="grid sm:grid-cols-3 gap-4 text-sm">
+        <div class="bg-white/70 backdrop-blur border border-white/40 rounded-xl p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-600 mb-1">
+            Fast search
+          </p>
+          <p class="text-gray-700 leading-relaxed">
+            We filter thousands of listings by what <em>you</em> care about, not just price and beds.
+          </p>
+        </div>
+        <div class="bg-white/70 backdrop-blur border border-white/40 rounded-xl p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-600 mb-1">
+            Honest signals
+          </p>
+          <p class="text-gray-700 leading-relaxed">
+            We call out red flags early — noise, parking headaches, weird HOA stuff.
+          </p>
+        </div>
+        <div class="bg-white/70 backdrop-blur border border-white/40 rounded-xl p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-600 mb-1">
+            Zero drama
+          </p>
+          <p class="text-gray-700 leading-relaxed">
+            When you’re ready, we tee up viewings and next steps with minimal back-and-forth.
+          </p>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-gray-400 leading-relaxed">
+        Prototype preview. Not financial or legal advice.
+      </p>
+    </section>
+  </main>
+
+  <!-- Firebase auth state toggle for navbar -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZpPsSgm9bnBeed7nRuHJOBc7MGhH0jpQ",
+      authDomain: "estatemate-d54e1.firebaseapp.com",
+      projectId: "estatemate-d54e1",
+      storageBucket: "estatemate-d54e1.firebasestorage.app",
+      messagingSenderId: "745236119215",
+      appId: "1:745236119215:web:7170303f7be0010ad79e5a",
+      measurementId: "G-RXWF5891QM"
+    };
+
+    // reuse existing app if already initialized elsewhere
+    const app = window._emApp || initializeApp(firebaseConfig);
+    window._emApp = app;
+
+    const auth = getAuth(app);
+
+    const signInBtn  = document.getElementById("signInBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+
+    function show(el){ el?.classList.remove("hidden"); }
+    function hide(el){ el?.classList.add("hidden"); }
+
+    // Swap navbar pill based on auth state
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        hide(signInBtn);
+        show(signOutBtn);
+      } else {
+        show(signInBtn);
+        hide(signOutBtn);
+      }
+    });
+
+    // Sign out -> send user to auth screen
+    signOutBtn?.addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Sign-out error:", err);
+      }
+      window.location.href = "auth.html";
+    });
+  </script>
+</body>
+</html>

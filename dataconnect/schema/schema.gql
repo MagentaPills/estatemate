@@ -1,0 +1,48 @@
+type User @table {
+  email: String!
+  createdAt: Timestamp!
+  displayName: String
+  photoUrl: String
+  lastLocation: String
+}
+
+type Property @table {
+  title: String!
+  address: String!
+  price: Float!
+  propertyType: String!
+  numBedrooms: Int!
+  numBathrooms: Int!
+  squareFootage: Int!
+  listingAgent: Agent!
+  createdAt: Timestamp!
+  description: String
+  amenities: [String]
+  yearBuilt: Int
+  latitude: Float
+  longitude: Float
+}
+
+type Agent @table {
+  displayName: String!
+  email: String!
+  phoneNumber: String!
+  agencyName: String!
+  bio: String
+  photoUrl: String
+}
+
+type FavoriteProperty @table(key: ["user", "property"]) {
+  user: User!
+  property: Property!
+  createdAt: Timestamp!
+  notes: String
+}
+
+type ChatInteraction @table {
+  user: User!
+  timestamp: Timestamp!
+  messageContent: String!
+  sender: String!
+  aiResponseSentiment: String
+}
